@@ -108,6 +108,8 @@
         </Init>
         <Story name="story_act_maneuvuergroup_drop maneuver">
             <ParameterDeclarations/>
+            <!-- Since two Maneuver Groups share the same start trigger,
+                It's plausible to put them in the same Act. -->
             <Act name="act_maneuvuergroup_drop maneuver">
                 <ManeuverGroup name="maneuvuergroup_drop maneuver" maximumExecutionCount="1">
                     <Actors selectTriggeringEntities="false">
@@ -150,6 +152,79 @@
                         </Event>
                     </Maneuver>
                 </ManeuverGroup>
+                <StartTrigger>
+                    <ConditionGroup>
+                        <Condition name="act_start" delay="0" conditionEdge="rising">
+                            <ByValueCondition>
+                                <SimulationTimeCondition value="0" rule="greaterThan"/>
+                            </ByValueCondition>
+                        </Condition>
+                    </ConditionGroup>
+                </StartTrigger>
+                <StopTrigger/>
+                <!-- My code starts here -->
+                <!-- The reaction of the white car to the bike in the presented scenario is unrealistic,
+                It should brake when it sees the bake fell on the road.
+                Therefore I added this code snippet to implement what Ego viehcle should do. -->
+                <!-- Separate Maneuver Group for Ego. Ego's Maneuvers are independent from bike's Maneuvers. -->
+                <ManeuverGroup name="maneuvuergroup_drop maneuver" maximumExecutionCount="1">
+                    <!-- Here the selected instance of entity is 'Ego'. -->
+                    <Actors selectTriggeringEntities="false">
+                        <EntityRef entityRef="Ego"/>
+                    </Actors>
+                    <!-- This maneuver contains only brake event. -->
+                    <Maneuver name="brake_Maneuver">
+                        <!-- This event contains only brake action, the priority is "overwrite", 
+                        it will be run with highest priority relative to other event in the same maneuver. -->
+                        <Event name="brake_Event" priority="overwrite">
+                            <!-- This action is a private longitudinal action, it controls speed of the entity Ego. -->
+                            <Action name="brake_Action">
+                                <PrivateAction>
+                                    <LongitudinalAction>
+                                        <SpeedAction>
+                                            <!-- SpeedActionDynamics defines how the target speed, which is 0, is reached. -->
+                                            <!-- When this action starts, Ego will decelerate linearly with a constant rate of 15 delta/s. -->
+                                            <SpeedActionDynamics dynamicsShape="linear" value="-15" dynamicsDimension="rate"/>
+                                            <SpeedActionTarget>
+                                                <!-- The absolute target speed is 0. -->
+                                                <AbsoluteTargetSpeed value="0"/>
+                                            </SpeedActionTarget>
+                                        </SpeedAction>
+                                    </LongitudinalAction>
+                                </PrivateAction>
+                            </Action>
+                            <!-- Start trigger for the brake event. -->
+                            <StartTrigger>
+                                <!-- Group of conditions serve as a single trigger, but we only need one condition here. -->
+                                <ConditionGroup>
+                                    <!-- Condition for braking. There will be no delay of the condition reporting.  -->
+                                    <Condition name="brake_Condition" delay="0" conditionEdge="rising">
+                                        <!-- Here we use Ego to perform contional evaluation. 
+                                        triggeringEntitiesRule="any" suggests that one of the triggering entities reaching the position is enough to trigger the event. -->
+                                        <ByEntityCondition>
+                                            <TriggeringEntities triggeringEntitiesRule="any">
+                                                <EntityRef entityRef="Ego"/>
+                                            </TriggeringEntities>
+                                            <!-- Condition is met when the time of entity Ego and target bike to collide is less than 2 seconds. -->
+                                            <!-- freespace="true" suggests that time to collision is measured using the distance between closest bounding box points, instead of reference point distance. -->
+                                            <EntityCondition>
+                                                <TimeToCollisionCondition value="2"
+                                                                    freespace="true"
+                                                                    rule="lessThan" >
+                                                    <!-- Target entity is bike -->
+                                                    <TimeToCollisionConditionTarget >
+                                                        <EntityRef entityRef="bike" />
+                                                    </TimeToCollisionConditionTarget>
+                                                </TimeToCollisionCondition>
+                                            </EntityCondition>
+                                        </ByEntityCondition>
+                                    </Condition>
+                                </ConditionGroup>
+                            </StartTrigger>
+                        </Event>
+                    </Maneuver>
+                </ManeuverGroup>
+                <!-- My code ends here -->
                 <StartTrigger>
                     <ConditionGroup>
                         <Condition name="act_start" delay="0" conditionEdge="rising">
